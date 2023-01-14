@@ -1,3 +1,5 @@
+import json
+
 import cv2
 from cv2 import VideoWriter
 from cv2 import VideoWriter_fourcc
@@ -10,7 +12,7 @@ import warnings
 warnings.filterwarnings("ignore")
 import time
 from torchvision.utils import draw_bounding_boxes
-from pycocotools.coco import COCO
+# from pycocotools.coco import COCO
 # Now, we will define our transforms
 from albumentations.pytorch import ToTensorV2
 from torchvision.utils import save_image
@@ -35,12 +37,18 @@ def time_convert(sec):
 dataset_path = DATASET_PATH
 
 #load classes
-coco = COCO(os.path.join(dataset_path, "train", "_annotations.coco.json"))
-categories = coco.cats
-n_classes_1 = len(categories.keys())
-categories
+# coco = COCO(os.path.join(dataset_path, "train", "_annotations.coco.json"))
+# categories = coco.cats
+# n_classes_1 = len(categories.keys())
+# categories
 
-classes_1 = [i[1]['name'] for i in categories.items()]
+f = open(os.path.join(dataset_path, "train", "_annotations.coco.json"))
+data = json.load(f)
+n_classes_1 = len(data["categories"])
+classes_1 = [i['name'] for i in data["categories"]]
+
+
+# classes_1 = [i[1]['name'] for i in categories.items()]
 
 
 # lets load the faster rcnn model
@@ -68,7 +76,7 @@ color_list = ['green', 'magenta', 'turquoise', 'red', 'green', 'orange', 'yellow
 
 
 cv2.namedWindow("preview")
-vc = cv2.VideoCapture(1)
+vc = cv2.VideoCapture(0)
 
 
 if vc.isOpened(): # try to get the first frame
