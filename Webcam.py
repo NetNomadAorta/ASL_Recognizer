@@ -68,7 +68,7 @@ color_list = ['green', 'magenta', 'turquoise', 'red', 'green', 'orange', 'yellow
 
 
 cv2.namedWindow("preview")
-vc = cv2.VideoCapture(0)
+vc = cv2.VideoCapture(1)
 
 
 if vc.isOpened(): # try to get the first frame
@@ -113,17 +113,43 @@ while rval:
     predicted_image = draw_bounding_boxes(transformed_image,
         boxes = dieCoordinates,
         # labels = [classes_1[i] for i in die_class_indexes], 
-        labels = labels_found, # SHOWS SCORE AND INDEX IN LABEL
-        width = 3
-        # colors = [color_list[i] for i in die_class_indexes]
+        # labels = labels_found, # SHOWS SCORE AND INDEX IN LABEL
+        width = 5,
+        colors = ['green' for i in die_class_indexes],
+        font="arial.ttf",
+        font_size=20
         )
-    
+
+    predicted_image_cv2 = predicted_image.permute(1, 2, 0).contiguous().numpy()
+    predicted_image_cv2 = cv2.cvtColor(predicted_image_cv2, cv2.COLOR_RGB2BGR)
+
+    for coordinate_index, coordinate in enumerate(dieCoordinates):
+        start_point = (int(coordinate[0]), int(coordinate[1]))
+        # end_point = ( int(coordinate[2]), int(coordinate[3]) )
+        color = (255, 100, 255)
+        # thickness = 3
+        # cv2.rectangle(predicted_image_cv2, start_point, end_point, color, thickness)
+
+        start_point_text = (start_point[0], max(start_point[1] - 5, 0))
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        fontScale = 1.0
+        thickness = 2
+
+        # Draws background text
+        cv2.putText(predicted_image_cv2, labels_found[coordinate_index],
+                    start_point_text, font, fontScale, (0,0,0), thickness + 3)
+
+        # Draws foreground text
+        cv2.putText(predicted_image_cv2, labels_found[coordinate_index],
+                    start_point_text, font, fontScale, color, thickness)
+
     # Can comment out - this is for testing
     # save_image((predicted_image/255), "image.jpg")
     
     # Changes image back to a cv2 friendly format
-    frame = predicted_image.permute(1,2,0).contiguous().numpy()
-    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+    # frame = predicted_image.permute(1,2,0).contiguous().numpy()
+    # frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+    frame = predicted_image_cv2
     
     # Write frame to the video file
     # video.write(frame)
