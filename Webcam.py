@@ -59,9 +59,14 @@ in_features = model_1.roi_heads.box_predictor.cls_score.in_features # we need to
 model_1.roi_heads.box_predictor = models.detection.faster_rcnn.FastRCNNPredictor(in_features, n_classes_1)
 
 
-# TESTING TO LOAD MODEL
+# Load model
+if torch.cuda.is_available():
+    map_loc_name = lambda storage, loc: storage.cuda()
+else:
+    map_loc_name = 'cpu'
+
 if os.path.isfile(SAVE_NAME):
-    checkpoint = torch.load(SAVE_NAME)
+    checkpoint = torch.load(SAVE_NAME, map_location=map_loc_name)
     model_1.load_state_dict(checkpoint)
 
 
