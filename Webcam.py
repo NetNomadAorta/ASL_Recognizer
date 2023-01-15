@@ -21,7 +21,7 @@ from torchvision.utils import save_image
 # User parameters
 SAVE_NAME       = "ASL_Letters.model"
 DATASET_PATH    = "./Training_Data/" + SAVE_NAME.split(".model",1)[0] +"/"
-MIN_SCORE       = 0.7
+MIN_SCORE       = 0.6
 IMAGE_SIZE      = 200
 
 
