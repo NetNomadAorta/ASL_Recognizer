@@ -22,7 +22,7 @@ from torchvision.utils import save_image
 SAVE_NAME       = "ASL_Letters.model"
 DATASET_PATH    = "./Training_Data/" + SAVE_NAME.split(".model",1)[0] +"/"
 MIN_SCORE       = 0.7
-IMAGE_SIZE      = 200
+IMAGE_SIZE      = 300
 
 
 def time_convert(sec):
@@ -118,16 +118,17 @@ while rval:
     transformed_image = transforms_1(image=image)
     transformed_image = transformed_image["image"]
 
-    with torch.no_grad():
-        prediction_1 = model_1([(transformed_image/255).to(device)])
-        pred_1 = prediction_1[0]
-    
+    if ii % 3 == 0: # Inferences every n frames
+        with torch.no_grad():
+            prediction_1 = model_1([(transformed_image/255).to(device)])
+            pred_1 = prediction_1[0]
+
     dieCoordinates = pred_1['boxes'][pred_1['scores'] > MIN_SCORE]
     die_class_indexes = pred_1['labels'][pred_1['scores'] > MIN_SCORE].tolist()
     # BELOW SHOWS SCORES - COMMENT OUT IF NEEDED
     die_scores = pred_1['scores'][pred_1['scores'] > MIN_SCORE].tolist()
-    
-    labels_found = [str(round(die_scores[index]*100)) + "% - " + str(classes_1[class_index]) 
+
+    labels_found = [str(round(die_scores[index]*100)) + "% - " + str(classes_1[class_index])
                     for index, class_index in enumerate(die_class_indexes)]
     
     predicted_image = draw_bounding_boxes(transformed_image,
