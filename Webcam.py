@@ -22,7 +22,7 @@ from torchvision.utils import save_image
 SAVE_NAME       = "ASL_Letters.model"
 DATASET_PATH    = "./Training_Data/" + SAVE_NAME.split(".model",1)[0] +"/"
 MIN_SCORE       = 0.7
-IMAGE_SIZE      = 800
+IMAGE_SIZE      = 200
 
 
 def time_convert(sec):
@@ -52,9 +52,16 @@ classes_1 = [i['name'] for i in data["categories"]]
 
 
 # lets load the faster rcnn model
-model_1 = models.detection.fasterrcnn_resnet50_fpn(pretrained=True,
+# Mobile Net
+model_1 = models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True,
                                                  min_size=IMAGE_SIZE,
-                                                 max_size=IMAGE_SIZE*3)
+                                                 max_size=IMAGE_SIZE*3
+                                                    )
+# Faster RCNN
+# model_1 = models.detection.fasterrcnn_resnet50_fpn(pretrained=True,
+#                                                  min_size=IMAGE_SIZE,
+#                                                  max_size=IMAGE_SIZE*3
+#                                                     )
 in_features = model_1.roi_heads.box_predictor.cls_score.in_features # we need to change the head
 model_1.roi_heads.box_predictor = models.detection.faster_rcnn.FastRCNNPredictor(in_features, n_classes_1)
 
@@ -100,7 +107,7 @@ transforms_1 = A.Compose([
 # Start FPS timer
 fps_start_time = time.time()
 ii = 0
-tenScale = 100
+tenScale = 10
 
 while rval:
     cv2.imshow("preview", frame)
@@ -110,7 +117,7 @@ while rval:
     image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     transformed_image = transforms_1(image=image)
     transformed_image = transformed_image["image"]
-    
+
     with torch.no_grad():
         prediction_1 = model_1([(transformed_image/255).to(device)])
         pred_1 = prediction_1[0]
