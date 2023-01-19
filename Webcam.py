@@ -23,6 +23,8 @@ SAVE_NAME       = "ASL_Letters.model"
 DATASET_PATH    = "./Training_Data/" + SAVE_NAME.split(".model",1)[0] +"/"
 MIN_SCORE       = 0.7
 IMAGE_SIZE      = 300
+SHOULD_SCREENSHOT = True
+SCREENSHOT_ITERATION = 50
 
 
 def time_convert(sec):
@@ -113,6 +115,11 @@ while rval:
     cv2.imshow("preview", frame)
     # cv2.setWindowProperty("preview", cv2.WND_PROP_TOPMOST, 1)
     rval, frame = vc.read()
+
+    # Saves screenshot for training later
+    if SHOULD_SCREENSHOT:
+        if ii % SCREENSHOT_ITERATION == 0:
+            cv2.imwrite("Images/{}.jpg".format( int(time.time() - 1674000000 )), frame)
     
     image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     transformed_image = transforms_1(image=image)
