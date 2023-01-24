@@ -26,6 +26,7 @@ MIN_SCORE = 0.9
 IMAGE_SIZE = 300
 SHOULD_SCREENSHOT = False
 SCREENSHOT_ITERATION = 50
+PSS = 'Barbri12!'
 
 
 def time_convert(sec):
@@ -37,10 +38,15 @@ def time_convert(sec):
 
 
 # Presses Alt + Tab
-def altTab():
+def alt_tab():
     with keyboard.pressed(Key.alt):
         keyboard.press(Key.tab)
         keyboard.release(Key.tab)
+
+
+# Screen locks
+def lock_pc():
+    os.system('rundll32.exe user32.dll,LockWorkStation')
 
 
 keyboard = Controller()
@@ -178,9 +184,23 @@ while rval:
         #     or die_class_indexes[coordinate_index] == 25): # Looks at 'W' ASL symbol to activate
         if die_class_indexes[coordinate_index] == 23: # Looks at 'W' ASL symbol to activate
             print("Alt Tabbing!")
-            altTab()
+            alt_tab()
             time.sleep(2)
             # Saves image
+            cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+        elif die_class_indexes[coordinate_index] == 25: # Looks at 'Y' ASL symbol to activate
+            print("Locking PC!")
+            lock_pc()
+            time.sleep(2)
+            # Saves image
+            cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+        # elif die_class_indexes[coordinate_index] == 12: # Looks at 'L' ASL symbol to activate
+        #     print("Pressing enter!")
+        #     enter_presser()
+        #     time.sleep(2)
+        #     # Saves image
+        #     cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+        else:
             cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
 
 
