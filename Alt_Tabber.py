@@ -118,6 +118,7 @@ transforms_1 = A.Compose([
 # Start FPS timer
 fps_start_time = time.time()
 ii = 0
+ii_found = 0
 tenScale = 10
 
 while rval:
@@ -134,7 +135,8 @@ while rval:
     transformed_image = transforms_1(image=image)
     transformed_image = transformed_image["image"]
 
-    if ii % 3 == 0:  # Inferences every n frames
+    n_frames = 3
+    if ii % n_frames == 0:  # Inferences every n frames
         with torch.no_grad():
             prediction_1 = model_1([(transformed_image / 255).to(device)])
             pred_1 = prediction_1[0]
@@ -180,28 +182,29 @@ while rval:
         cv2.putText(predicted_image_cv2, labels_found[coordinate_index],
                     start_point_text, font, fontScale, color, thickness)
 
-        # if (die_class_indexes[coordinate_index] == 23
-        #     or die_class_indexes[coordinate_index] == 25): # Looks at 'W' ASL symbol to activate
-        if die_class_indexes[coordinate_index] == 23: # Looks at 'W' ASL symbol to activate
-            print("Alt Tabbing!")
-            alt_tab()
-            time.sleep(2)
-            # Saves image
-            # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
-        elif die_class_indexes[coordinate_index] == 25: # Looks at 'Y' ASL symbol to activate
-            print("Locking PC!")
-            lock_pc()
-            time.sleep(2)
-            # Saves image
-            # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
-        # elif die_class_indexes[coordinate_index] == 12: # Looks at 'L' ASL symbol to activate
-        #     print("Pressing enter!")
-        #     enter_presser()
-        #     time.sleep(2)
-        #     # Saves image
-        #     # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
-        else:
-            cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+        if ii > (ii_found + n_frames*3):
+            # if (die_class_indexes[coordinate_index] == 23
+            #     or die_class_indexes[coordinate_index] == 25): # Looks at 'W' ASL symbol to activate
+            if die_class_indexes[coordinate_index] == 23: # Looks at 'W' ASL symbol to activate
+                print("Alt Tabbing!")
+                alt_tab()
+                ii_found = ii
+                # Saves image
+                # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+            elif die_class_indexes[coordinate_index] == 25: # Looks at 'Y' ASL symbol to activate
+                print("Locking PC!")
+                lock_pc()
+                ii_found = ii
+                # Saves image
+                # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+            # elif die_class_indexes[coordinate_index] == 12: # Looks at 'L' ASL symbol to activate
+            #     print("Pressing enter!")
+            #     enter_presser()
+            #     ii_found = ii
+            #     # Saves image
+            #     # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+            else:
+                cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
 
 
     # Can comment out - this is for testing
