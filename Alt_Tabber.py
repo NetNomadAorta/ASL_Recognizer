@@ -187,19 +187,19 @@ while rval:
             alt_tab()
             time.sleep(2)
             # Saves image
-            cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+            # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
         elif die_class_indexes[coordinate_index] == 25: # Looks at 'Y' ASL symbol to activate
             print("Locking PC!")
             lock_pc()
             time.sleep(2)
             # Saves image
-            cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+            # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
         # elif die_class_indexes[coordinate_index] == 12: # Looks at 'L' ASL symbol to activate
         #     print("Pressing enter!")
         #     enter_presser()
         #     time.sleep(2)
         #     # Saves image
-        #     cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+        #     # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
         else:
             cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
 
