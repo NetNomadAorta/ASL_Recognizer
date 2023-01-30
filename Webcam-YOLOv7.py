@@ -155,6 +155,7 @@ old_img_b = 1
 fps_start_time = time.time()
 ii = 0
 tenScale = 10
+n_frames = 5
 
 while rval:
     rval, frame = vc.read()
@@ -194,44 +195,45 @@ while rval:
         for i in range(3):
             model(img, augment=False)[0]
 
-    t1 = time_synchronized()
-    pred = model(img, augment=False)[0]
-    t2 = time_synchronized()
+    if ii % n_frames == 0 or ii == 0:
+        t1 = time_synchronized()
+        pred = model(img, augment=False)[0]
+        t2 = time_synchronized()
 
-    # Apply NMS
-    pred = non_max_suppression(pred, conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
-    t3 = time_synchronized()
+        # Apply NMS
+        pred = non_max_suppression(pred, conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
+        t3 = time_synchronized()
 
-    # Process detections
-    for i, det in enumerate(pred):  # detections per image
-        s, im0 = '', im0s
+        # Process detections
+        for i, det in enumerate(pred):  # detections per image
+            s, im0 = '', im0s
 
-        # txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
-        gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
+            # txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
+            gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
 
-        if len(det):
-            # Rescale boxes from img_size to im0 size
-            det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
+            if len(det):
+                # Rescale boxes from img_size to im0 size
+                det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
 
-            # Print results
-            for c in det[:, -1].unique():
-                n = (det[:, -1] == c).sum()  # detections per class
-                s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
+                # Print results
+                for c in det[:, -1].unique():
+                    n = (det[:, -1] == c).sum()  # detections per class
+                    s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
-            # Write results
-            for *xyxy, conf, cls in reversed(det):
-                if save_txt:  # Write to file
-                    xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                    line = (cls, *xywh, conf) if False else (cls, *xywh)  # label format
-                    # with open(txt_path + '.txt', 'a') as f:
-                    #     f.write(('%g ' * len(line)).rstrip() % line + '\n')
+                # Write results
+                for *xyxy, conf, cls in reversed(det):
+                    if save_txt:  # Write to file
+                        xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+                        line = (cls, *xywh, conf) if False else (cls, *xywh)  # label format
+                        # with open(txt_path + '.txt', 'a') as f:
+                        #     f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
-                # Add bbox to image
-                label = f'{names[int(cls)]} {conf:.2f}'
-                plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
+                    # Add bbox to image
+                    label = f'{names[int(cls)]} {conf:.2f}'
+                    plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
 
-        # Print time (inference + NMS)
-        # print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
+            # Print time (inference + NMS)
+            # print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
 
         # Stream results
         cv2.imshow("preview", im0)

@@ -140,7 +140,7 @@ fps_start_time = time.time()
 ii = 0
 ii_found = 0
 tenScale = 10
-n_frames = 10
+n_frames = 5
 
 while rval:
     # cv2.imshow("preview", frame)
