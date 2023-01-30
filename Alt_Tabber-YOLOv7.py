@@ -180,53 +180,54 @@ while rval:
         for i in range(3):
             model(img, augment=False)[0]
 
-    t1 = time_synchronized()
-    pred = model(img, augment=False)[0]
-    t2 = time_synchronized()
+    if ii % n_frames == 0 or ii ==0:
+        t1 = time_synchronized()
+        pred = model(img, augment=False)[0]
+        t2 = time_synchronized()
 
-    # Apply NMS
-    pred = non_max_suppression(pred, conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
-    t3 = time_synchronized()
+        # Apply NMS
+        pred = non_max_suppression(pred, conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
+        t3 = time_synchronized()
 
-    # Process detections
-    for i, det in enumerate(pred):  # detections per image
-        s, im0 = '', im0s
+        # Process detections
+        for i, det in enumerate(pred):  # detections per image
+            s, im0 = '', im0s
 
-        # txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
-        gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
+            # txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
+            gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
 
-        if len(det):
-            # Rescale boxes from img_size to im0 size
-            det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
+            if len(det):
+                # Rescale boxes from img_size to im0 size
+                det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
 
-            # Print results
-            for c in det[:, -1].unique():
-                n = (det[:, -1] == c).sum()  # detections per class
-                s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
+                # Print results
+                for c in det[:, -1].unique():
+                    n = (det[:, -1] == c).sum()  # detections per class
+                    s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
 
-            if ii > (ii_found + n_frames * 3):
-                for *xyxy, conf, cls in reversed(det):
-                    if cls == 22: # Looks at 'W' ASL symbol to activate
-                        print("Alt Tabbing!")
-                        alt_tab()
-                        ii_found = ii
-                        # Saves image
-                        # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
-                    elif cls == 24: # Looks at 'Y' ASL symbol to activate
-                        print("Locking PC!")
-                        lock_pc()
-                        ii_found = ii
-                        # Saves image
-                        # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
-                    # elif cls == 11: # Looks at 'L' ASL symbol to activate
-                    #     print("Pressing enter!")
-                    #     enter_presser()
-                    #     ii_found = ii
-                    #     # Saves image
-                    #     # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
-                    # else:
-                    #     cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+                if ii > (ii_found + n_frames * 3):
+                    for *xyxy, conf, cls in reversed(det):
+                        if cls == 22: # Looks at 'W' ASL symbol to activate
+                            print("Alt Tabbing!")
+                            alt_tab()
+                            ii_found = ii
+                            # Saves image
+                            # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+                        elif cls == 24: # Looks at 'Y' ASL symbol to activate
+                            print("Locking PC!")
+                            lock_pc()
+                            ii_found = ii
+                            # Saves image
+                            # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+                        # elif cls == 11: # Looks at 'L' ASL symbol to activate
+                        #     print("Pressing enter!")
+                        #     enter_presser()
+                        #     ii_found = ii
+                        #     # Saves image
+                        #     # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+                        # else:
+                        #     cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
 
     ii += 1
     if ii % tenScale == 0:
