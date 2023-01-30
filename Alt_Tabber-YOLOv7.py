@@ -1,32 +1,24 @@
-import json
-
-import cv2
-from cv2 import VideoWriter
-from cv2 import VideoWriter_fourcc
-import os
-import torch
-from torchvision import models
-import albumentations as A  # our data augmentation library
-# remove arnings (optional)
-import warnings
+import argparse
+from numpy import random
 from pynput.keyboard import Key, Controller
 
-warnings.filterwarnings("ignore")
+from models.experimental import attempt_load
+from utils.general import check_img_size, check_requirements, check_imshow, non_max_suppression, apply_classifier, \
+    scale_coords, xyxy2xywh, strip_optimizer, set_logging, increment_path
+from utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
+
+import cv2
+import numpy as np
+import os
+import torch
 import time
-from torchvision.utils import draw_bounding_boxes
-# from pycocotools.coco import COCO
-# Now, we will define our transforms
-from albumentations.pytorch import ToTensorV2
-from torchvision.utils import save_image
 
 # User parameters
-SAVE_NAME = "ASL_Letters.model"
-DATASET_PATH = "./Training_Data/" + SAVE_NAME.split(".model", 1)[0] + "/"
-MIN_SCORE = 0.9
-IMAGE_SIZE = 300
+WEIGHTS = "asl.pt"
+MIN_SCORE    = 0.5
+IMAGE_SIZE   = 320 # Change to 320 for double speed
 SHOULD_SCREENSHOT = False
 SCREENSHOT_ITERATION = 50
-PSS = 'Barbri12!'
 
 
 def time_convert(sec):
@@ -49,55 +41,68 @@ def lock_pc():
     os.system('rundll32.exe user32.dll,LockWorkStation')
 
 
+def letterbox(img, new_shape=(IMAGE_SIZE, IMAGE_SIZE), color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True, stride=32):
+    # Resize and pad image while meeting stride-multiple constraints
+    shape = img.shape[:2]  # current shape [height, width]
+    if isinstance(new_shape, int):
+        new_shape = (new_shape, new_shape)
+
+    # Scale ratio (new / old)
+    r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
+    if not scaleup:  # only scale down, do not scale up (for better test mAP)
+        r = min(r, 1.0)
+
+    # Compute padding
+    ratio = r, r  # width, height ratios
+    new_unpad = int(round(shape[1] * r)), int(round(shape[0] * r))
+    dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]  # wh padding
+    if auto:  # minimum rectangle
+        dw, dh = np.mod(dw, stride), np.mod(dh, stride)  # wh padding
+    elif scaleFill:  # stretch
+        dw, dh = 0.0, 0.0
+        new_unpad = (new_shape[1], new_shape[0])
+        ratio = new_shape[1] / shape[1], new_shape[0] / shape[0]  # width, height ratios
+
+    dw /= 2  # divide padding into 2 sides
+    dh /= 2
+
+    if shape[::-1] != new_unpad:  # resize
+        img = cv2.resize(img, new_unpad, interpolation=cv2.INTER_LINEAR)
+    top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
+    left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
+    img = cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
+    return img, ratio, (dw, dh)
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--weights', nargs='+', type=str, default='yolov7.pt', help='model.pt path(s)')
+parser.add_argument('--source', type=str, default='inference/images', help='source')  # file/folder, 0 for webcam
+parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
+parser.add_argument('--conf-thres', type=float, default=0.25, help='object confidence threshold')
+parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
+parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+parser.add_argument('--view-img', action='store_true', help='display results')
+parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
+parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
+parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
+parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --class 0, or --class 0 2 3')
+parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
+parser.add_argument('--augment', action='store_true', help='augmented inference')
+parser.add_argument('--update', action='store_true', help='update all models')
+parser.add_argument('--project', default='runs/detect', help='save results to project/name')
+parser.add_argument('--name', default='exp', help='save results to project/name')
+parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
+parser.add_argument('--no-trace', action='store_true', help='don`t trace model')
+opt = parser.parse_args()
+
+source = "inference/images/"
+weights = WEIGHTS
+imgsz = (IMAGE_SIZE, IMAGE_SIZE)
+conf_thres = MIN_SCORE
+save_img=False
+save_txt = False
+
 keyboard = Controller()
-
-dataset_path = DATASET_PATH
-
-# load classes
-# coco = COCO(os.path.join(dataset_path, "train", "_annotations.coco.json"))
-# categories = coco.cats
-# n_classes_1 = len(categories.keys())
-# categories
-
-f = open(os.path.join(dataset_path, "train", "_annotations.coco.json"))
-data = json.load(f)
-n_classes_1 = len(data["categories"])
-classes_1 = [i['name'] for i in data["categories"]]
-
-# classes_1 = [i[1]['name'] for i in categories.items()]
-
-
-# lets load the faster rcnn model
-# Mobile Net
-model_1 = models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True,
-                                                             min_size=IMAGE_SIZE,
-                                                             max_size=IMAGE_SIZE * 3
-                                                             )
-# Faster RCNN
-# model_1 = models.detection.fasterrcnn_resnet50_fpn(pretrained=True,
-#                                                  min_size=IMAGE_SIZE,
-#                                                  max_size=IMAGE_SIZE*3
-#                                                     )
-in_features = model_1.roi_heads.box_predictor.cls_score.in_features  # we need to change the head
-model_1.roi_heads.box_predictor = models.detection.faster_rcnn.FastRCNNPredictor(in_features, n_classes_1)
-
-# Load model
-if torch.cuda.is_available():
-    map_loc_name = lambda storage, loc: storage.cuda()
-else:
-    map_loc_name = 'cpu'
-
-if os.path.isfile(SAVE_NAME):
-    checkpoint = torch.load(SAVE_NAME, map_location=map_loc_name)
-    model_1.load_state_dict(checkpoint)
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # use GPU to train
-model_1 = model_1.to(device)
-
-model_1.eval()
-torch.cuda.empty_cache()
-
-color_list = ['green', 'magenta', 'turquoise', 'red', 'green', 'orange', 'yellow', 'cyan', 'lime']
 
 # cv2.namedWindow("preview")
 vc = cv2.VideoCapture(0)
@@ -107,19 +112,35 @@ if vc.isOpened():  # try to get the first frame
 else:
     rval = False
 
-# For recording video
-# video = VideoWriter('webcam.avi', VideoWriter_fourcc(*'MJPG'), 10.0, (int(frame.shape[1]), int(frame.shape[0])) )
+# Initialize
+set_logging()
+device = select_device("0" if torch.cuda.is_available() else "cpu")
+half = device.type != 'cpu'  # half precision only supported on CUDA
 
-transforms_1 = A.Compose([
-    # A.Resize(int(frame.shape[0]/2), int(frame.shape[1]/2)),
-    ToTensorV2()
-])
+# Load model
+model = attempt_load(weights, map_location=device)  # load FP32 model
+stride = int(model.stride.max())  # model stride
+imgsz = IMAGE_SIZE  # check img_size
+
+if half:
+    model.half()  # to FP16
+
+# Get names and colors
+names = model.module.names if hasattr(model, 'module') else model.names
+colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
+
+# Run inference
+if device.type != 'cpu':
+    model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
+old_img_w = old_img_h = imgsz
+old_img_b = 1
 
 # Start FPS timer
 fps_start_time = time.time()
 ii = 0
 ii_found = 0
 tenScale = 10
+n_frames = 10
 
 while rval:
     # cv2.imshow("preview", frame)
@@ -131,96 +152,81 @@ while rval:
         if ii % SCREENSHOT_ITERATION == 0:
             cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
 
-    image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    transformed_image = transforms_1(image=image)
-    transformed_image = transformed_image["image"]
 
-    n_frames = 3
-    if ii % n_frames == 0:  # Inferences every n frames
-        with torch.no_grad():
-            prediction_1 = model_1([(transformed_image / 255).to(device)])
-            pred_1 = prediction_1[0]
+    # Yv7 Section
+    # ----------------------------------------------------------
+    t0 = time.time()
+    # STEPPING THROUGH IMAGES
+    img0 = frame  # BGR # INSERT IMAGE HERE!!!
+    im0s = img0
+    # Padded resize
+    img = letterbox(img0, imgsz, stride=32)[0]
 
-    dieCoordinates = pred_1['boxes'][pred_1['scores'] > MIN_SCORE]
-    die_class_indexes = pred_1['labels'][pred_1['scores'] > MIN_SCORE].tolist()
-    # BELOW SHOWS SCORES - COMMENT OUT IF NEEDED
-    die_scores = pred_1['scores'][pred_1['scores'] > MIN_SCORE].tolist()
+    # Convert
+    img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+    img = np.ascontiguousarray(img)
 
-    labels_found = [str(round(die_scores[index] * 100)) + "% - " + str(classes_1[class_index])
-                    for index, class_index in enumerate(die_class_indexes)]
+    img = torch.from_numpy(img).to(device)
+    img = img.half() if half else img.float()  # uint8 to fp16/32
+    img /= 255.0  # 0 - 255 to 0.0 - 1.0
+    if img.ndimension() == 3:
+        img = img.unsqueeze(0)
 
-    predicted_image = draw_bounding_boxes(transformed_image,
-                                          boxes=dieCoordinates,
-                                          # labels = [classes_1[i] for i in die_class_indexes],
-                                          # labels = labels_found, # SHOWS SCORE AND INDEX IN LABEL
-                                          width=5,
-                                          colors=['green' for i in die_class_indexes],
-                                          font="arial.ttf",
-                                          font_size=20
-                                          )
+    # Warmupdet
+    if device.type != 'cpu' and (old_img_b != img.shape[0] or old_img_h != img.shape[2] or old_img_w != img.shape[3]):
+        old_img_b = img.shape[0]
+        old_img_h = img.shape[2]
+        old_img_w = img.shape[3]
+        for i in range(3):
+            model(img, augment=False)[0]
 
-    predicted_image_cv2 = predicted_image.permute(1, 2, 0).contiguous().numpy()
-    predicted_image_cv2 = cv2.cvtColor(predicted_image_cv2, cv2.COLOR_RGB2BGR)
+    t1 = time_synchronized()
+    pred = model(img, augment=False)[0]
+    t2 = time_synchronized()
 
-    for coordinate_index, coordinate in enumerate(dieCoordinates):
-        start_point = (int(coordinate[0]), int(coordinate[1]))
-        # end_point = ( int(coordinate[2]), int(coordinate[3]) )
-        color = (255, 100, 255)
-        # thickness = 3
-        # cv2.rectangle(predicted_image_cv2, start_point, end_point, color, thickness)
+    # Apply NMS
+    pred = non_max_suppression(pred, conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
+    t3 = time_synchronized()
 
-        start_point_text = (start_point[0], max(start_point[1] - 5, 0))
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        fontScale = 1.0
-        thickness = 2
+    # Process detections
+    for i, det in enumerate(pred):  # detections per image
+        s, im0 = '', im0s
 
-        # Draws background text
-        cv2.putText(predicted_image_cv2, labels_found[coordinate_index],
-                    start_point_text, font, fontScale, (0, 0, 0), thickness + 3)
+        # txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
+        gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
 
-        # Draws foreground text
-        cv2.putText(predicted_image_cv2, labels_found[coordinate_index],
-                    start_point_text, font, fontScale, color, thickness)
+        if len(det):
+            # Rescale boxes from img_size to im0 size
+            det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
 
-        if ii > (ii_found + n_frames*3):
-            # if (die_class_indexes[coordinate_index] == 23
-            #     or die_class_indexes[coordinate_index] == 25): # Looks at 'W' ASL symbol to activate
-            if die_class_indexes[coordinate_index] == 23: # Looks at 'W' ASL symbol to activate
-                print("Alt Tabbing!")
-                alt_tab()
-                ii_found = ii
-                # Saves image
-                # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
-            elif die_class_indexes[coordinate_index] == 25: # Looks at 'Y' ASL symbol to activate
-                print("Locking PC!")
-                lock_pc()
-                ii_found = ii
-                # Saves image
-                # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
-            # elif die_class_indexes[coordinate_index] == 12: # Looks at 'L' ASL symbol to activate
-            #     print("Pressing enter!")
-            #     enter_presser()
-            #     ii_found = ii
-            #     # Saves image
-            #     # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
-            else:
-                cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+            # Print results
+            for c in det[:, -1].unique():
+                n = (det[:, -1] == c).sum()  # detections per class
+                s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
 
-    # Can comment out - this is for testing
-    # save_image((predicted_image/255), "image.jpg")
-
-    # Changes image back to a cv2 friendly format
-    # frame = predicted_image.permute(1,2,0).contiguous().numpy()
-    # frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-    frame = predicted_image_cv2
-
-    # Write frame to the video file
-    # video.write(frame)
-
-    key = cv2.waitKey(20)
-    if key == 27:  # exit on ESC
-        break
+            if ii > (ii_found + n_frames * 3):
+                for *xyxy, conf, cls in reversed(det):
+                    if cls == 22: # Looks at 'W' ASL symbol to activate
+                        print("Alt Tabbing!")
+                        alt_tab()
+                        ii_found = ii
+                        # Saves image
+                        # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+                    elif cls == 24: # Looks at 'Y' ASL symbol to activate
+                        print("Locking PC!")
+                        lock_pc()
+                        ii_found = ii
+                        # Saves image
+                        # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+                    # elif cls == 11: # Looks at 'L' ASL symbol to activate
+                    #     print("Pressing enter!")
+                    #     enter_presser()
+                    #     ii_found = ii
+                    #     # Saves image
+                    #     # cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
+                    # else:
+                    #     cv2.imwrite("Images/{}.jpg".format(int(time.time() - 1674000000)), frame)
 
     ii += 1
     if ii % tenScale == 0:
