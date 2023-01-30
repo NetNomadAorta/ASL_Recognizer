@@ -174,6 +174,7 @@ while rval:
     # STEPPING THROUGH IMAGES
     img0 = frame  # BGR # INSERT IMAGE HERE!!!
     im0s = img0
+    s, im0 = '', im0s
     # Padded resize
     img = letterbox(img0, imgsz, stride=32)[0]
 
@@ -232,12 +233,15 @@ while rval:
                     label = f'{names[int(cls)]} {conf:.2f}'
                     plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
 
-            # Print time (inference + NMS)
-            # print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
+        # Print time (inference + NMS)
+        # print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
+    else:
+        for *xyxy, conf, cls in reversed(det):
+            plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
 
-        # Stream results
-        cv2.imshow("preview", im0)
-        cv2.waitKey(1)  # 1 millisecond
+    # Stream results
+    cv2.imshow("preview", im0)
+    cv2.waitKey(1)  # 1 millisecond
     
     ii += 1
     if ii % tenScale == 0:

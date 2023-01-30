@@ -206,7 +206,7 @@ while rval:
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
 
-                if ii > (ii_found + n_frames * 3):
+                if ii > (ii_found + n_frames * 2):
                     for *xyxy, conf, cls in reversed(det):
                         if cls == 22: # Looks at 'W' ASL symbol to activate
                             print("Alt Tabbing!")
