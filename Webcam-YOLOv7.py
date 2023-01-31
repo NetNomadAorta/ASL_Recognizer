@@ -47,6 +47,7 @@ MIN_SCORE    = 0.5
 IMAGE_SIZE   = 320 # Change to 320 for double speed
 SHOULD_SCREENSHOT = False
 SCREENSHOT_ITERATION = 50
+N_FRAMES     = 5
 
 
 def time_convert(sec):
@@ -155,7 +156,7 @@ old_img_b = 1
 fps_start_time = time.time()
 ii = 0
 tenScale = 10
-n_frames = 5
+n_frames = N_FRAMES
 
 while rval:
     rval, frame = vc.read()

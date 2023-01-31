@@ -25,6 +25,7 @@ MIN_SCORE       = 0.7
 IMAGE_SIZE      = 300
 SHOULD_SCREENSHOT = False
 SCREENSHOT_ITERATION = 50
+N_FRAMES        = 3
 
 
 def time_convert(sec):
@@ -125,7 +126,7 @@ while rval:
     transformed_image = transforms_1(image=image)
     transformed_image = transformed_image["image"]
 
-    if ii % 3 == 0: # Inferences every n frames
+    if ii % N_FRAMES == 0: # Inferences every n frames
         with torch.no_grad():
             prediction_1 = model_1([(transformed_image/255).to(device)])
             pred_1 = prediction_1[0]
