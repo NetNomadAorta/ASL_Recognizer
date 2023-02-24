@@ -21,7 +21,7 @@ while date_time.hour < 7 or date_time.hour > (12+7):
 
     time.sleep(30 + random.randint(0,60))
     date_time = datetime.datetime.now()
-    print("\r", "The time is now: = %s:%s:%s" % (date_time.hour,
+    print("\r", "The updated time is: = %s:%s:%s" % (date_time.hour,
                                                  date_time.minute,
                                                  date_time.second),
           end="")
