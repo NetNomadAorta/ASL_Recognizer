@@ -12,7 +12,7 @@ print ("Today's date:  = %s/%s/%s" % (date_time.day, date_time.month, date_time.
 
 print ("The time is now: = %s:%s:%s" % (date_time.hour, date_time.minute, date_time.second))
 
-while date_time.hour < 7 or date_time.hour > (12+7):
+while date_time.hour < 7 or date_time.hour >= (12+7):
     # Move pointer relative to current position
     time.sleep(1)
     pyautogui.press('volumeup')
@@ -26,4 +26,4 @@ while date_time.hour < 7 or date_time.hour > (12+7):
                                                  date_time.second),
           end="")
 
-print("Done and exiting!")
+print("\nDone and exiting!")
